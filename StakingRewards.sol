@@ -15,8 +15,11 @@ import "./RewardsDistributionRecipient.sol";
 contract StakingRewards is RewardsDistributionRecipient, ReentrancyGuard,ERC20{
     using SafeMath for uint256;
     //using ERC20 for IERC20;
+    //The reward for the player's final pledged currency
     ERC721 public rewardsTokenx;
+    //Intermediate currency for measuring and converting pledge rewards NFT
     ERC20 public rewardsToken;
+    //Gold coins pledged by players
     ERC20 public stakingToken;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
@@ -63,7 +66,7 @@ contract StakingRewards is RewardsDistributionRecipient, ReentrancyGuard,ERC20{
                 lastTimeRewardApplicable().sub(lastUpdateTime).mul(rewardRate).mul(1e18).div(_totalSupply)
             );
     }
-
+    //Let players know how much intermediate coins they earn to convert into NFTs 
     function earned(address account) public view returns (uint256) {
         return _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(1e18).add(rewards[account]);
     }
@@ -85,6 +88,7 @@ contract StakingRewards is RewardsDistributionRecipient, ReentrancyGuard,ERC20{
         //stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         //emit Staked(msg.sender, amount);
    // }
+   //Give players NFT as a reward for staking coins
     function ERC20toERC721 () public payable{
         uint256 reward = rewards[msg.sender];
         uint256 tokenId = reward%10;
@@ -112,7 +116,7 @@ contract StakingRewards is RewardsDistributionRecipient, ReentrancyGuard,ERC20{
         //ERC20(msg.sender).transfer(address(this), amount);
         emit Withdrawn(msg.sender, amount);
     }
-
+//Players don't want to exchange NFT anymore, and withdraw rewards halfway
     function getReward() public payable nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
@@ -125,14 +129,14 @@ contract StakingRewards is RewardsDistributionRecipient, ReentrancyGuard,ERC20{
             //msg.sender.transfer(amount);
         }
     }
-
+//The player withdraws the pledged gold coins and the intermediate coins in exchange for NFT rewards
     function exit() external payable{
         withdraw(_balances[msg.sender]);
         getReward();
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
-
+//How much intermediate currency is provided in the pledge pool as a medium for players to pledge dividends in exchange for NFT
     function notifyRewardAmount(uint256 reward) external payable onlyRewardsDistribution updateReward(address(0)) override{
         if (block.timestamp >= periodFinish) {
             rewardRate = reward.div(rewardsDuration);

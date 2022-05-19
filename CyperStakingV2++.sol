@@ -124,6 +124,11 @@ contract CyberStakingRewards is RewardsDistributionRecipient, ReentrancyGuard, E
         return daysNeededNow;
     }
 
+    function setNFT(uint256 tokenId, uint256 price, uint256 k) external onlyRewardsDistribution returns(bool) {
+        CyberArmsRewards.mint(address(this), tokenId, k);
+        _price[tokenId] = price;
+    }
+
     /**
      * @dev get NFTs as Rewards.
      *
@@ -198,7 +203,7 @@ contract CyberStakingRewards is RewardsDistributionRecipient, ReentrancyGuard, E
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155Received} and return the
      * acceptance magic value.
      */
-    function notifyRewardAmount(uint256 reward) external onlyRewardsDistribution updateReward(address(0)) override{
+    function notifyRewardAmount(uint256 reward)  public updateReward(address(0)) override{
         if (block.timestamp >= periodFinish) {
             rewardRate = reward.div(rewardsDuration);
         } else {

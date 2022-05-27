@@ -1,59 +1,98 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.9;
 
-pragma solidity >=0.7.0 <0.9.0;
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20VotesComp.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+contract CyberPopToken is
+    ERC20,
+    Pausable,
+    ERC20Permit,
+    ERC20VotesComp,
+    AccessControl
+{
+    using Address for address;
 
-contract ERC20{
-    using SafeMath for uint;
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    uint256 public CAP = 120 * 10e12 * 10**decimals();
 
-    uint8 public constant decimals = 18;
-    uint  public totalSupply;
-    mapping(address => uint) public balanceOf;
-    mapping(address => mapping(address => uint)) public allowance;
+    constructor() ERC20("CyberPopToken", "CYT") ERC20Permit("CyberPopToken") {
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(MINTER_ROLE, msg.sender);
 
-    event Approval(address indexed owner, address indexed spender, uint value);
-    event Transfer(address indexed from, address indexed to, uint value);
-
-    function _mint(address to, uint value) public {
-        totalSupply = totalSupply.add(value);
-        balanceOf[to] = balanceOf[to].add(value);
-        emit Transfer(address(0), to, value);
+        _mint(msg.sender, CAP); // capped at 120m
     }
 
-    function _burn(address from, uint value) public payable{
-        balanceOf[from] = balanceOf[from].sub(value);
-        totalSupply = totalSupply.sub(value);
-        emit Transfer(from, address(0), value);
+    function decimals() public pure override returns (uint8) {
+        return 6;
     }
 
-    function _approve(address owner, address spender, uint value) public{
-        allowance[owner][spender] = value;
-        emit Approval(owner, spender, value);
+    function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
     }
 
-    function _transfer(address from, address to, uint value) public payable{
-        balanceOf[from] = balanceOf[from].sub(value);
-        balanceOf[to] = balanceOf[to].add(value);
-        emit Transfer(from, to, value);
+    function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 
-    function approve(address spender, uint value) external returns (bool) {
-        _approve(msg.sender, spender, value);
-        return true;
+    function _contractTransferCallback(
+        address _from,
+        address _to,
+        uint256 _value,
+        bytes memory _data
+    ) internal returns (bool) {
+        string memory signature = "onTokenTransfer(address,uint256,bytes)";
+        (bool success, ) = _to.call(
+            abi.encodeWithSignature(signature, _from, _value, _data)
+        );
+        return success;
     }
 
-    function transfer(address to, uint value) external payable returns (bool) {
-        _transfer(msg.sender, to, value);
-        return true;
+    function mint(address to, uint256 amount)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        whenNotPaused
+    {
+        _mint(to, amount);
     }
 
-    function transferFrom(address from, address to, uint value) external payable returns (bool) {
-        if (allowance[from][msg.sender] != 0) {
-            allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override whenNotPaused {
+        super._beforeTokenTransfer(from, to, amount);
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override(ERC20, ERC20Votes) {
+        super._afterTokenTransfer(from, to, amount);
+        if (to.isContract()) {
+            _contractTransferCallback(from, to, amount, new bytes(0));
         }
-        _transfer(from, to, value);
-        return true;
+    }
+
+    function _mint(address to, uint256 amount)
+        internal
+        override(ERC20, ERC20Votes)
+    {
+        require(totalSupply() <= CAP, "CYT: capped");
+        super._mint(to, amount);
+    }
+
+    function _burn(address account, uint256 amount)
+        internal
+        override(ERC20, ERC20Votes)
+    {
+        super._burn(account, amount);
     }
 }

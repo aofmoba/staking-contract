@@ -158,7 +158,7 @@ contract CyberStakingRewards is RewardsDistributionRecipient, ReentrancyGuard, E
     /**
      * @dev See {IStakingRewards-withdraw}.
      */
-    function withdraw(uint256 amount) public nonReentrant updateReward(msg.sender) {
+    function withdraw(uint256 amount) internal nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
@@ -170,7 +170,7 @@ contract CyberStakingRewards is RewardsDistributionRecipient, ReentrancyGuard, E
     /**
      * @dev See {IStakingRewards-getReward}.
      */
-    function getReward() public nonReentrant updateReward(msg.sender) {
+    function getReward() internal nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
             rewards[msg.sender] = 0;

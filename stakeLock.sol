@@ -13,7 +13,7 @@ contract Timestake is Ownable {
 
     // Release every 30 days after the stake period
     //uint256 public constant BATCH_PERIOD = 24 * 60 * 60 * 30;
-    uint256 public constant BATCH_PERIOD = 10;
+    uint256 public constant BATCH_PERIOD = 1;
 
     event profit(uint256 indexed k);
 
@@ -50,7 +50,7 @@ contract Timestake is Ownable {
             stakedBalances[msg.sender].stakeTimestamp < block.timestamp,
             "CYT staker: stake duration not passed"
         );
-        uint256 _amount = k*releasedAmount(msg.sender);
+        uint256 _amount = releasedAmount(msg.sender);
         require(_amount > 0, "CYT staker: insufficient balance");
 
         subBalance(msg.sender, _amount);
@@ -78,12 +78,12 @@ contract Timestake is Ownable {
             "CYT staker: cannot re-stake a staked address"
         );
         ERC20(token).transferFrom(msg.sender, address(this), _amount);
-        stakedBalances[_sender].stakedAmount = _amount;
+        stakedBalances[_sender].stakedAmount = _amount*k/100;
         stakedBalances[_sender].releaseBatches = _batches;
         stakedBalances[_sender].stakeTimestamp = block.timestamp.add(
             _stakePeriod
         );
-        totalstaked = totalstaked.add(_amount);
+        totalstaked = totalstaked.add(_amount*k/100);
     }
 
     /**
@@ -103,24 +103,24 @@ contract Timestake is Ownable {
         uint256 delta = _now.sub(staker.stakeTimestamp);
         uint256 batches = delta.div(BATCH_PERIOD) + 1; // starting from 1
         if (batches >= staker.releaseBatches) {
-            return (staker.stakedAmount - staker.withdrawedAmount)/100;
+            return (staker.stakedAmount - staker.withdrawedAmount);
         }
         return
             ((staker.stakedAmount * batches) /
             staker.releaseBatches -
-            staker.withdrawedAmount)/100;
+            staker.withdrawedAmount);
     }
 
     function subBalance(address _sender, uint256 _amount) private {
         stakedBalances[_sender].withdrawedAmount = stakedBalances[_sender]
             .withdrawedAmount
-            .add(_amount).mul(100).div(k);
+            .add(_amount);
         if (
             stakedBalances[_sender].stakedAmount <=
             stakedBalances[_sender].withdrawedAmount
         ) {
             delete stakedBalances[_sender]; // clean up storage for stakeTimestamp
         }
-        totalstaked = totalstaked - _amount*100/k;
+        totalstaked = totalstaked - _amount;
     }
 }

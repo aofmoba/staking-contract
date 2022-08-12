@@ -94,6 +94,8 @@ contract Timestake is Ownable {
     ) external {
         uint256 stakedAmount = stakedBalances[_sender].stakedAmount;
         uint256 restakedAmount = restakedBalances[_id].stakedAmount;
+        require(_id > 0, "id > 0");
+        
         if(stakedAmount == 0){
         _id = 0;
         ERC20(token).transferFrom(msg.sender, address(this), _amount);

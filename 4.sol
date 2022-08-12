@@ -95,7 +95,7 @@ contract Timestake is Ownable {
         uint256 stakedAmount = stakedBalances[_sender].stakedAmount;
         uint256 restakedAmount = restakedBalances[_id].stakedAmount;
         require(_id > 0, "id > 0");
-        
+
         if(stakedAmount == 0){
         _id = 0;
         ERC20(token).transferFrom(msg.sender, address(this), _amount);
@@ -146,6 +146,30 @@ contract Timestake is Ownable {
             return staker.stakedAmount;
         }
     }
+
+    function RereleasedAmount(uint256 _id)
+        public
+        view
+        returns (uint256 amounts)
+    {
+        uint256 _now = block.timestamp;
+        Restaker memory restaker = restakedBalances[_id];
+        if (restaker.stakeTimestamp == 0 || _now < restaker.stakeTimestamp) {
+            return 0;
+        }
+        //uint256 delta = _now.sub(staker.stakeTimestamp);
+        //uint256 batches = delta.div(BATCH_PERIOD) + 1; // starting from 1
+        //if (batches >= staker.releaseBatches) {
+            //return (staker.stakedAmount - staker.getRewardedAmount);
+        //}
+        //return
+            //((staker.stakedAmount * batches) /
+            //staker.releaseBatches -
+            //staker.getRewardedAmount);
+        if ( restaker.stakeTimestamp < _now) {
+            return restaker.stakedAmount;
+        }
+    }
     
     function subBalance(address _sender, uint256 _amount) private {
         stakedBalances[_sender].getRewardedAmount = stakedBalances[_sender]
@@ -160,5 +184,16 @@ contract Timestake is Ownable {
         totalstaked = totalstaked - _amount;
     }
 
-    
+    function resubBalance(uint256 _id, uint256 _amount) private {
+        restakedBalances[_id].getRewardedAmount = restakedBalances[_id]
+            .getRewardedAmount
+            .add(_amount);
+        if (
+            restakedBalances[_id].stakedAmount <=
+            restakedBalances[_id].getRewardedAmount
+        ) {
+            delete restakedBalances[_id]; // clean up storage for stakeTimestamp
+        }
+        totalstaked = totalstaked - _amount;
+    }
 }

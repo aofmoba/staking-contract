@@ -19,31 +19,16 @@ contract Timestake is Ownable {
     event Withdrawn(address indexed m, uint256 n);
 
     struct Staker {
-        // release cliff
+        
         uint256 stakeTimestamp;
-        // total staked amount per address
+        
         uint256 stakedAmount;
-        // number of batches to release total staked amount
-        //uint256 releaseBatches;
-        // persist getRewarded amount up to date
+        
         uint256 getRewardedAmount;
     }
 
-    struct Restaker {
-        // release cliff
-        uint256 stakeTimestamp;
-        // total staked amount per address
-        uint256 stakedAmount;
-        // number of batches to release total staked amount
-        //uint256 releaseBatches;
-        // persist getRewarded amount up to date
-        uint256 getRewardedAmount;
-    }
-
-    // staked amount and release time for each address
-    mapping(address => Staker) public stakedBalances;
-    mapping(address => mapping(uint256 => Restaker)) private restakedBalances;
-    //mapping(address => uint256) public userStake;
+    mapping(address => mapping(uint256 => Staker)) public stakedBalances;
+    
     uint256 public totalstaked;
 
     event getRewards(address user, uint256 amount);
@@ -63,23 +48,22 @@ contract Timestake is Ownable {
     /**
      * @dev Token owner can use this function to release their fund after the stake period
      */
-    function getReward() external {
+    function getReward(uint256 _id) external {
         require(
-            stakedBalances[msg.sender].stakeTimestamp < block.timestamp,
+            stakedBalances[msg.sender][_id].stakeTimestamp < block.timestamp,
             "CYT staker: stake duration not passed"
         );
-        uint256 _amount = releasedAmount(msg.sender);
+        uint256 _amount = releasedAmount(msg.sender, _id);
         require(_amount > 0, "CYT staker: insufficient balance");
 
-        //subBalance(msg.sender, _amount);
         emit getRewards(msg.sender, _amount);
         IERC20(rewardsToken).transfer(msg.sender, _amount);
     }
 
-    function withdraw(uint256 amount) public {
+    function withdraw(uint256 amount, uint256 _id) public {
         require(amount > 0, "Cannot withdraw 0");
         emit Withdrawn(msg.sender, amount);
-        stakedBalances[msg.sender].stakedAmount = stakedBalances[msg.sender].stakedAmount.sub(amount);
+        stakedBalances[msg.sender][_id].stakedAmount = stakedBalances[msg.sender][_id].stakedAmount.sub(amount);
         totalstaked = totalstaked.sub(amount);
         IERC20(rewardsToken).transfer(msg.sender, amount);
     }
@@ -96,107 +80,46 @@ contract Timestake is Ownable {
         uint256 _stakePeriod,
         uint256 _id
     ) external {
-        uint256 stakedAmount = stakedBalances[_sender].stakedAmount;
-        uint256 restakedAmount = restakedBalances[msg.sender][_id].stakedAmount;
+        uint256 stakedAmount = stakedBalances[_sender][_id].stakedAmount;
         require(_id > 0, "id > 0");
+        require(stakedAmount == 0, "the id has been used!");
 
-        if(stakedAmount == 0){
-        _id = 0;
         ERC20(stakingToken).transferFrom(msg.sender, address(this), _amount);
-        stakedBalances[_sender].stakedAmount = _amount*k/100;
-        stakedBalances[_sender].stakeTimestamp = block.timestamp.add(
+        stakedBalances[_sender][_id].stakedAmount = _amount*k/100;
+        stakedBalances[_sender][_id].stakeTimestamp = block.timestamp.add(
             _stakePeriod
         );
         totalstaked = totalstaked.add(_amount*k/100);
-        }
-
-        require(restakedAmount == 0, "the id has been used!");
-
-        if(stakedAmount > 0){
-        ERC20(stakingToken).transferFrom(msg.sender, address(this), _amount);
-        restakedBalances[msg.sender][_id].stakedAmount = _amount*k/100;
-        restakedBalances[msg.sender][_id].stakeTimestamp = block.timestamp.add(
-            _stakePeriod
-        );
-        totalstaked = totalstaked.add(_amount*k/100);
-        }
-
     }
 
     /**
      * @notice Query released amount for the beneficient address
      * @param _beneficient Address of the beneficient
      */
-    function releasedAmount(address _beneficient)
+    function releasedAmount(address _beneficient, uint256 _id)
         public
         view
         returns (uint256 amounts)
     {
         uint256 _now = block.timestamp;
-        Staker memory staker = stakedBalances[_beneficient];
+        Staker memory staker = stakedBalances[_beneficient][_id];
         if (staker.stakeTimestamp == 0 || _now < staker.stakeTimestamp) {
             return 0;
         }
-        //uint256 delta = _now.sub(staker.stakeTimestamp);
-        //uint256 batches = delta.div(BATCH_PERIOD) + 1; // starting from 1
-        //if (batches >= staker.releaseBatches) {
-            //return (staker.stakedAmount - staker.getRewardedAmount);
-        //}
-        //return
-            //((staker.stakedAmount * batches) /
-            //staker.releaseBatches -
-            //staker.getRewardedAmount);
         if ( staker.stakeTimestamp < _now) {
             return staker.stakedAmount;
         }
     }
 
-    function RereleasedAmount(uint256 _id)
-        public
-        view
-        returns (uint256 amounts)
-    {
-        uint256 _now = block.timestamp;
-        Restaker memory restaker = restakedBalances[msg.sender][_id];
-        if (restaker.stakeTimestamp == 0 || _now < restaker.stakeTimestamp) {
-            return 0;
-        }
-        //uint256 delta = _now.sub(staker.stakeTimestamp);
-        //uint256 batches = delta.div(BATCH_PERIOD) + 1; // starting from 1
-        //if (batches >= staker.releaseBatches) {
-            //return (staker.stakedAmount - staker.getRewardedAmount);
-        //}
-        //return
-            //((staker.stakedAmount * batches) /
-            //staker.releaseBatches -
-            //staker.getRewardedAmount);
-        if ( restaker.stakeTimestamp < _now) {
-            return restaker.stakedAmount;
-        }
-    }
-    
-    function subBalance(address _sender, uint256 _amount) private {
-        stakedBalances[_sender].getRewardedAmount = stakedBalances[_sender]
+    function subBalance(address _sender, uint256 _amount, uint256 _id) private {
+        stakedBalances[_sender][_id].getRewardedAmount = stakedBalances[_sender][_id]
             .getRewardedAmount
             .add(_amount);
         if (
-            stakedBalances[_sender].stakedAmount <=
-            stakedBalances[_sender].getRewardedAmount
+            stakedBalances[_sender][_id].stakedAmount <=
+            stakedBalances[_sender][_id].getRewardedAmount
         ) {
-            delete stakedBalances[_sender]; // clean up storage for stakeTimestamp
-        }
-        totalstaked = totalstaked - _amount;
-    }
-
-    function resubBalance(uint256 _id, uint256 _amount) private {
-        restakedBalances[msg.sender][_id].getRewardedAmount = restakedBalances[msg.sender][_id]
-            .getRewardedAmount
-            .add(_amount);
-        if (
-            restakedBalances[msg.sender][_id].stakedAmount <=
-            restakedBalances[msg.sender][_id].getRewardedAmount
-        ) {
-            delete restakedBalances[msg.sender][_id]; // clean up storage for stakeTimestamp
+            delete stakedBalances[_sender][_id]; // clean up storage for stakeTimestamp
         }
         totalstaked = totalstaked - _amount;
     }

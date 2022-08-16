@@ -55,8 +55,9 @@ contract Timestake is Ownable {
         );
         uint256 _amount = releasedAmount(msg.sender, _id);
         require(_amount > 0, "CYT staker: insufficient balance");
-
+        
         emit getRewards(msg.sender, _amount);
+        subBalance(msg.sender, _amount, _id);
         IERC20(rewardsToken).transfer(msg.sender, _amount);
     }
 
@@ -64,7 +65,7 @@ contract Timestake is Ownable {
         require(amount > 0, "Cannot withdraw 0");
         emit Withdrawn(msg.sender, amount);
         stakedBalances[msg.sender][_id].stakedAmount = stakedBalances[msg.sender][_id].stakedAmount.sub(amount);
-        totalstaked = totalstaked.sub(amount);
+        totalstaked.sub(amount);
         IERC20(rewardsToken).transfer(msg.sender, amount);
     }
     /**

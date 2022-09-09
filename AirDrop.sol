@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "./ERC20.sol";
-contract AirDrop is Ownable {
-    ERC20 public DropToken;
+contract AirDrop is Ownable, CyberPopToken {
+    CyberPopToken public DropToken;
     bytes32 immutable public root; // Merkle书的根
     mapping(address => uint256) public mintedAddress;   // 记录已经mint的地址
     mapping(address => bool) public minted;
@@ -13,7 +13,7 @@ contract AirDrop is Ownable {
     // 构造函数，初始化NFT合集的名称、代号、Merkle树的根
     constructor(address token, bytes32 merkleroot)
     {
-        DropToken = ERC20(token);
+        DropToken = CyberPopToken(token);
         root = merkleroot;
     }
 
@@ -27,7 +27,7 @@ contract AirDrop is Ownable {
             DropToken.balanceOf(address(this)) >= amount,
             "Insufficient balance"
         );
-        DropToken.transfer(account, amount); // mint
+        DropToken.mint(account, amount); // mint
         mintedAddress[account] += amount; // 记录mint过的地址
         minted[account] = true;
     }

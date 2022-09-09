@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "./ERC20.sol";
 contract AirDrop is Ownable, CyberPopToken {
     CyberPopToken public DropToken;
-    bytes32 immutable public root; // Merkle书的根
+    bytes32 public root; // Merkle书的根
     mapping(address => uint256) public mintedAddress;   // 记录已经mint的地址
     mapping(address => bool) public minted;
 
@@ -21,7 +21,7 @@ contract AirDrop is Ownable, CyberPopToken {
     function getDrop(address account, uint256 amount, bytes32[] calldata proof)
     external
     {
-        require(_verify(_leaf(account), proof), "Invalid merkle proof"); // Merkle检验通过
+        require(_verify(getLeaf(account), proof), "Invalid merkle proof"); // Merkle检验通过
         require(!minted[account], "Already minted!");
         require(
             DropToken.balanceOf(address(this)) >= amount,
@@ -33,16 +33,19 @@ contract AirDrop is Ownable, CyberPopToken {
     }
 
     // 计算Merkle书叶子的哈希值
-    function _leaf(address account)
-    internal pure returns (bytes32)
-    {
-        return keccak256(abi.encodePacked(account));
+    function getLeaf(address account) public pure returns(bytes32) {
+        return keccak256(abi.encodePacked(keccak256(abi.encodePacked(account))));
     }
 
     // Merkle树验证，调用MerkleProof库的verify()函数
     function _verify(bytes32 leaf, bytes32[] memory proof)
-    internal view returns (bool)
+    public view returns (bool)
     {
         return MerkleProof.verify(proof, root, leaf);
+    }
+
+    //设置根
+    function setMerkleRoot(bytes32 _root) external onlyOwner {
+        root = _root;
     }
 }

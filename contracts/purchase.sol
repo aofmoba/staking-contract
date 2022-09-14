@@ -18,8 +18,11 @@ contract CETtransact is APIConsumer, ERC1155Holder{
     IERC20 public CetCoin;
     uint256 CETprice;
     uint256 cost;
+    address CyberArm;
+    address users;
 
     mapping(address => mapping(uint256 => Infos)) public Information;
+    event purchaseInformation(uint256 k, uint256 _id, uint256 _timestamp, uint256 volumes, address arms, address users);
 
     struct Infos {
         uint256 amount;
@@ -34,11 +37,16 @@ contract CETtransact is APIConsumer, ERC1155Holder{
 
     constructor (
         address _CetCoin,
-        address _CyberArmsRewards
+        address _CyberArmsRewards,
+        address _admin
     ) {
         CetCoin = IERC20(_CetCoin);
         CyberArmsRewards = IERC1155(_CyberArmsRewards);
+        CyberArm = _CyberArmsRewards;
+        users = _admin;
     }
+
+
     //计算购买这些CET一共需要多少usdt
     function getCETpeice(uint256 k) internal returns(uint256){
         requestVolumeData();
@@ -46,15 +54,18 @@ contract CETtransact is APIConsumer, ERC1155Holder{
         cost = k.mul(volume);
         return cost;
     }
-    //购买cet
-    function purchaseCyberArms(address _sender, uint256 _id, uint256 k, uint256 _purchasePeriod, uint256 _batches) public{
+    //购买cet获取ERC1155
+    function purchaseCyberArms(address _sender, uint256 _id, uint256 k, uint256 _purchasePeriod) public{
         getCETpeice(k);
+        uint256 _batches = 6;
+        uint256 emitTimestamp = block.timestamp.add(_purchasePeriod);
         Information[_sender][_id].amount = cost;
         Information[_sender][_id].purchaseTimestamp = block.timestamp.add(
             _purchasePeriod
         );
         Information[_sender][_id].releaseBatches = _batches;
-        CetCoin.transferFrom(_sender, address(this), cost);
+        CetCoin.transferFrom(_sender, users, cost);
         CyberArmsRewards.safeTransferFrom(address(this), _sender, _id, k, "0x7465737400000000000000000000000000000000000000000000000000000000");
+        emit purchaseInformation(k, _id, emitTimestamp, CETprice, CyberArm, msg.sender);
     }
 }

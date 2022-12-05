@@ -139,13 +139,13 @@ contract CyberStaking is ReentrancyGuard, ERC1155Holder{
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155Received} and return the
      * acceptance magic value.
      */
-    function getNFT (uint256 k, uint256 tokenId) public nonReentrant updateReward(msg.sender){
+    function getNFT (uint256 n, uint256 tokenId) public nonReentrant updateReward(msg.sender){
         uint256 reward = rewards[msg.sender];
-        uint256 cost = k.mul(_price[tokenId]);
+        uint256 cost = n.mul(_price[tokenId]);
         require(reward > cost ,"reward: Insufficient balance");
         rewards[msg.sender] = rewards[msg.sender] - cost;
-        CyberArmsRewards.safeTransferFrom(address(this), msg.sender, tokenId, k, "0x");
-        emit Reward(msg.sender, tokenId, k);
+        CyberArmsRewards.safeTransferFrom(address(this), msg.sender, tokenId, n, "0x");
+        emit Reward(msg.sender, tokenId, n);
     }
 
     /**
@@ -157,6 +157,15 @@ contract CyberStaking is ReentrancyGuard, ERC1155Holder{
         _balances[msg.sender] = _balances[msg.sender].add(amount);
         stakingToken.transferFrom(msg.sender, address(this), amount);
         emit Staked(address(this), amount);
+    }
+
+    function stakeWithPermit(uint256 amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external nonReentrant updateReward(msg.sender) {
+        require(amount > 0, "Cannot stake 0");
+        _totalSupply = _totalSupply.add(amount);
+        _balances[msg.sender] = _balances[msg.sender].add(amount);
+        ICyberpopERC20(address(stakingToken)).permit(msg.sender, address(this), amount, deadline, v, r, s);
+        stakingToken.transferFrom(msg.sender, address(this), amount);
+        emit Staked(msg.sender, amount);
     }
 
     /**
@@ -225,4 +234,8 @@ contract CyberStaking is ReentrancyGuard, ERC1155Holder{
         }
         _;
     }
+}
+
+interface ICyberpopERC20 {
+    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
 }
